@@ -65,6 +65,9 @@ def jaccard(box_a, box_b):
     area_b = ((box_b[:, 2]-box_b[:, 0]) *
               (box_b[:, 3]-box_b[:, 1])).unsqueeze(0).expand_as(inter)  # [A,B]
     union = area_a + area_b - inter
+    # print("The union is")
+    # print(union)
+    union[union<1e-5] = 1e-5
     return inter / union  # [A,B]
 
 
@@ -92,14 +95,14 @@ def match(threshold, truths, priors, variances, labels, loc_t, conf_t, idx):
     )
     # (Bipartite Matching)
     # [1,num_objects] best prior for each ground truth
-    best_prior_overlap, best_prior_idx = overlaps.max(1, keepdim=True)
+    best_prior_overlap, best_prior_idx = overlaps.max(1, keepdim=True) #行最大值
     # [1,num_priors] best ground truth for each prior
     best_truth_overlap, best_truth_idx = overlaps.max(0, keepdim=True)
     best_truth_idx.squeeze_(0)
     best_truth_overlap.squeeze_(0)
     best_prior_idx.squeeze_(1)
     best_prior_overlap.squeeze_(1)
-    best_truth_overlap.index_fill_(0, best_prior_idx, 2)  # ensure best prior
+    best_truth_overlap.index_fill_(0, best_prior_idx, 2)  # ensure best prior  lzp
     # TODO refactor: index  best_prior_idx with long tensor
     # ensure every gt matches with its prior of max overlap
     for j in range(best_prior_idx.size(0)):
@@ -109,6 +112,11 @@ def match(threshold, truths, priors, variances, labels, loc_t, conf_t, idx):
     conf[best_truth_overlap < threshold] = 0  # label as background
     loc = encode(matches, priors, variances)
     loc_t[idx] = loc    # [num_priors,4] encoded offsets to learn
+    conf = conf.view(1, 8732)
+    # print("lzp box_utils 113: loc t:")
+    # print(loc_t)
+    # print("lzp box_utils 113: conf data")
+    # print(conf)
     conf_t[idx] = conf  # [num_priors] top class label for each prior
 
 
@@ -126,12 +134,19 @@ def encode(matched, priors, variances):
     """
 
     # dist b/t match center and prior's center
+    # print("Origin g_cxcy")
+    # print(matched)
     g_cxcy = (matched[:, :2] + matched[:, 2:])/2 - priors[:, :2]
+
     # encode variance
     g_cxcy /= (variances[0] * priors[:, 2:])
     # match wh / prior wh
     g_wh = (matched[:, 2:] - matched[:, :2]) / priors[:, 2:]
+    g_wh[g_wh<1e-4] = 1e-4
     g_wh = torch.log(g_wh) / variances[1]
+    # print("Encode g_cxcy")
+    # print(torch.cat([g_cxcy, g_wh], 1))
+
     # return target for smooth_l1_loss
     return torch.cat([g_cxcy, g_wh], 1)  # [num_priors,4]
 

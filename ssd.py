@@ -3,7 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.autograd import Variable
 from layers import *
-from data import voc, coco
+from data import voc, coco, dota
 import os
 
 
@@ -29,7 +29,10 @@ class SSD(nn.Module):
         super(SSD, self).__init__()
         self.phase = phase
         self.num_classes = num_classes
-        self.cfg = (coco, voc)[num_classes == 21]
+        if num_classes == 16:
+            self.cfg = dota
+        else:
+            self.cfg = (coco, voc)[num_classes == 21]
         self.priorbox = PriorBox(self.cfg)
         self.priors = Variable(self.priorbox.forward(), volatile=True)
         self.size = size
@@ -69,7 +72,8 @@ class SSD(nn.Module):
         sources = list()
         loc = list()
         conf = list()
-
+        # x = x.type(torch.FloatTensor)  # 转Float
+        # x = x.cuda()  # 转cuda
         # apply vgg up to conv4_3 relu
         for k in range(23):
             x = self.vgg[k](x)

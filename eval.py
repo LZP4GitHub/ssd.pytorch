@@ -9,8 +9,8 @@ import torch
 import torch.nn as nn
 import torch.backends.cudnn as cudnn
 from torch.autograd import Variable
-from data import VOC_ROOT, VOCAnnotationTransform, VOCDetection, BaseTransform
-from data import VOC_CLASSES as labelmap
+from data import DOTA_ROOT, DOTAAnnotationTransform, DOTADetection, BaseTransform
+from data import DOTA_CLASSES as labelmap
 import torch.utils.data as data
 
 from ssd import build_ssd
@@ -36,7 +36,7 @@ def str2bool(v):
 parser = argparse.ArgumentParser(
     description='Single Shot MultiBox Detector Evaluation')
 parser.add_argument('--trained_model',
-                    default='weights/ssd300_mAP_77.43_v2.pth', type=str,
+                    default='weights/ssd300_DOTA_1200.pth', type=str,
                     help='Trained state_dict file path to open')
 parser.add_argument('--save_folder', default='eval/', type=str,
                     help='File path to save results')
@@ -46,7 +46,7 @@ parser.add_argument('--top_k', default=5, type=int,
                     help='Further restrict the number of predictions to parse')
 parser.add_argument('--cuda', default=True, type=str2bool,
                     help='Use cuda to train model')
-parser.add_argument('--voc_root', default=VOC_ROOT,
+parser.add_argument('--dota_root', default=DOTA_ROOT,
                     help='Location of VOC root directory')
 parser.add_argument('--cleanup', default=True, type=str2bool,
                     help='Cleanup and remove results files following eval')
@@ -66,12 +66,12 @@ if torch.cuda.is_available():
 else:
     torch.set_default_tensor_type('torch.FloatTensor')
 
-annopath = os.path.join(args.voc_root, 'VOC2007', 'Annotations', '%s.xml')
-imgpath = os.path.join(args.voc_root, 'VOC2007', 'JPEGImages', '%s.jpg')
-imgsetpath = os.path.join(args.voc_root, 'VOC2007', 'ImageSets',
+annopath = os.path.join(args.dota_root, 'VOC2007', 'Annotations', '%s.xml')
+imgpath = os.path.join(args.dota_root, 'VOC2007', 'JPEGImages', '%s.jpg')
+imgsetpath = os.path.join(args.dota_root, 'VOC2007', 'ImageSets',
                           'Main', '{:s}.txt')
 YEAR = '2007'
-devkit_path = args.voc_root + 'VOC' + YEAR
+devkit_path = args.dota_root + 'VOC'
 dataset_mean = (104, 117, 123)
 set_type = 'test'
 
@@ -165,7 +165,7 @@ def do_python_eval(output_dir='output', use_07=True):
     aps = []
     # The PASCAL VOC metric changed in 2010
     use_07_metric = use_07
-    print('VOC07 metric? ' + ('Yes' if use_07_metric else 'No'))
+    # print('VOC07 metric? ' + ('Yes' if use_07_metric else 'No'))
     if not os.path.isdir(output_dir):
         os.mkdir(output_dir)
     for i, cls in enumerate(labelmap):
@@ -372,7 +372,7 @@ def test_net(save_folder, net, cuda, dataset, transform, top_k,
 
     # timers
     _t = {'im_detect': Timer(), 'misc': Timer()}
-    output_dir = get_output_dir('ssd300_120000', set_type)
+    output_dir = get_output_dir('ssd300_lzp', set_type)
     det_file = os.path.join(output_dir, 'detections.pkl')
 
     for i in range(num_images):
@@ -426,9 +426,8 @@ if __name__ == '__main__':
     net.eval()
     print('Finished loading model!')
     # load data
-    dataset = VOCDetection(args.voc_root, [('2007', set_type)],
-                           BaseTransform(300, dataset_mean),
-                           VOCAnnotationTransform())
+    dataset = DOTADetection(root=args.dataset_root, transform = BaseTransform(300, dataset_mean),target_transform =DOTAAnnotationTransform())
+
     if args.cuda:
         net = net.cuda()
         cudnn.benchmark = True
